@@ -96,16 +96,17 @@ function useMemoryDeck(pairs = 8) {
 
 const MemoryMatch: React.FC<{ pairs?: number }> = ({ pairs = 8 }) => {
   const { deck, flip, reset, moves, elapsedMs } = useMemoryDeck(pairs);
+  const gridColumns = Math.min(pairs * 2, 8);
 
   return (
-    <div className="memory-match">
-      <div className="memory-toolbar">
+    <div className="memory-match utility-stack">
+      <div className="memory-toolbar utility-cluster utility-cluster--between">
         <h2 className="memory-title">🧩 Memory Match</h2>
-        <div className="memory-controls">
-          <label className="memory-select">
+        <div className="memory-controls utility-cluster">
+          <label className="memory-select form-label">
             <span>Pairs:</span>
             <select
-              className="memory-select-input"
+              className="memory-select-input form-select"
               defaultValue={pairs}
               onChange={(e) => (location.href = `?pairs=${e.target.value}`)}
             >
@@ -121,7 +122,7 @@ const MemoryMatch: React.FC<{ pairs?: number }> = ({ pairs = 8 }) => {
           </button>
         </div>
       </div>
-      <div className="memory-stats">
+      <div className="memory-stats meta-row">
         <span>
           <strong>Moves:</strong> {moves}
         </span>
@@ -131,17 +132,17 @@ const MemoryMatch: React.FC<{ pairs?: number }> = ({ pairs = 8 }) => {
           </span>
         )}
       </div>
-      <div className="memory-grid">
+      <div className={`memory-grid cols-${gridColumns}`}>
         {deck.map((c, i) => (
           <button
             key={c.id}
             type="button"
             onClick={() => flip(i)}
-            className={`memory-card${c.flipped ? " is-flipped" : ""}${c.matched ? " is-matched" : ""}`}
+            className={`memory-card${c.matched ? " is-matched" : c.flipped ? " is-flipped" : ""}`}
             disabled={c.matched}
             aria-label={c.flipped ? c.emoji : "Hidden card"}
           >
-            {c.flipped || c.matched ? c.emoji : "?"}
+            <span className="memory-card__emoji">{c.flipped || c.matched ? c.emoji : "?"}</span>
           </button>
         ))}
       </div>
@@ -151,8 +152,8 @@ const MemoryMatch: React.FC<{ pairs?: number }> = ({ pairs = 8 }) => {
 
 // --- Placeholder zip game (coming soon) ---
 const ZipGamePlaceholder: React.FC = () => (
-  <div className="game-card game-card--muted">
-    <h2 className="game-card-title">⚡ Zip (coming soon)</h2>
+  <div className="panel is-muted">
+    <h2>⚡ Zip (coming soon)</h2>
     <p>A quick, brainy puzzle inspired by daily mini-games. We'll plug the real game here later.</p>
   </div>
 );
@@ -164,9 +165,9 @@ const Section: React.FC<{ title: string; children: React.ReactNode; right?: Reac
   right,
 }) => (
   <section className="section">
-    <div className="section-header">
-      <h1 className="section-title">{title}</h1>
-      {right && <div className="section-actions">{right}</div>}
+    <div className="section__header">
+      <h1>{title}</h1>
+      {right && <div className="section__side">{right}</div>}
     </div>
     {children}
   </section>
@@ -182,37 +183,50 @@ export default function GamesDashboard() {
   const pairs = useQueryPairs();
   const [active, setActive] = useState<"dashboard" | "memory" | "zip">("dashboard");
 
+  const NavButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ className, ...rest }) => (
+    <button
+      {...rest}
+      type={rest.type ?? "button"}
+      className={["btn", "btn--surface", className].filter(Boolean).join(" ")}
+    />
+  );
+
+  const navigate = (view: "dashboard" | "memory" | "zip") => () => setActive(view);
+
   return (
-    <div className="app container">
-      <header className="site-header">
-        <div className="site-brand">
-          <span className="site-brand-icon" aria-hidden="true">
+    <div className="app-shell container">
+      <header className="app-header">
+        <div className="brand">
+          <span className="brand__icon" aria-hidden="true">
             🎯
           </span>
           <strong>GameHub</strong>
         </div>
-        <nav className="site-nav">
-          <button
-            type="button"
-            onClick={() => setActive("dashboard")}
-            className={`btn btn--dark${active === "dashboard" ? " is-active" : ""}`}
+        <nav className="nav-cluster" aria-label="Primary">
+          <NavButton
+            onClick={navigate("dashboard")}
+            className={active === "dashboard" ? "is-active" : undefined}
+            aria-pressed={active === "dashboard"}
+            aria-current={active === "dashboard" ? "page" : undefined}
           >
             Dashboard
-          </button>
-          <button
-            type="button"
-            onClick={() => setActive("memory")}
-            className={`btn btn--dark${active === "memory" ? " is-active" : ""}`}
+          </NavButton>
+          <NavButton
+            onClick={navigate("memory")}
+            className={active === "memory" ? "is-active" : undefined}
+            aria-pressed={active === "memory"}
+            aria-current={active === "memory" ? "page" : undefined}
           >
             Memory Match
-          </button>
-          <button
-            type="button"
-            onClick={() => setActive("zip")}
-            className={`btn btn--dark${active === "zip" ? " is-active" : ""}`}
+          </NavButton>
+          <NavButton
+            onClick={navigate("zip")}
+            className={active === "zip" ? "is-active" : undefined}
+            aria-pressed={active === "zip"}
+            aria-current={active === "zip" ? "page" : undefined}
           >
             Zip
-          </button>
+          </NavButton>
         </nav>
       </header>
 
@@ -220,25 +234,25 @@ export default function GamesDashboard() {
         <Section
           title="Your games"
           right={
-            <button type="button" className="btn btn--light" onClick={() => setActive("memory")}>
+            <button className="btn btn--light" onClick={navigate("memory")}>
               Play now
             </button>
           }
         >
-          <div className="game-grid">
-            <div className="game-card">
-              <div className="game-card-header">
-                <h3 className="game-card-title">🧩 Memory Match</h3>
-                <button type="button" className="btn btn--light" onClick={() => setActive("memory")}>
+          <div className="game-card-grid">
+            <div className="panel">
+              <div className="utility-cluster utility-cluster--between">
+                <h3>🧩 Memory Match</h3>
+                <button className="btn btn--light" onClick={navigate("memory")}>
                   Open
                 </button>
               </div>
               <p>Flip cards, find pairs. Simple, fast, addictive.</p>
             </div>
-            <div className="game-card game-card--muted">
-              <div className="game-card-header">
-                <h3 className="game-card-title">⚡ Zip</h3>
-                <button type="button" className="btn btn--light" onClick={() => setActive("zip")}>
+            <div className="panel is-muted">
+              <div className="utility-cluster utility-cluster--between">
+                <h3>⚡ Zip</h3>
+                <button className="btn btn--subtle" onClick={navigate("zip")}>
                   Preview
                 </button>
               </div>
@@ -252,7 +266,7 @@ export default function GamesDashboard() {
         <Section
           title="Memory Match"
           right={
-            <button type="button" className="btn btn--light" onClick={() => setActive("dashboard")}>
+            <button className="btn btn--ghost" onClick={navigate("dashboard")}>
               Back
             </button>
           }
@@ -265,7 +279,7 @@ export default function GamesDashboard() {
         <Section
           title="Zip"
           right={
-            <button type="button" className="btn btn--light" onClick={() => setActive("dashboard")}>
+            <button className="btn btn--ghost" onClick={navigate("dashboard")}>
               Back
             </button>
           }
@@ -274,7 +288,7 @@ export default function GamesDashboard() {
         </Section>
       )}
 
-      <footer className="site-footer">
+      <footer className="footer">
         <span>© GameHub • Built with React + TypeScript</span>
       </footer>
     </div>
