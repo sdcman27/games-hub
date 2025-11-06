@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import "./App.css";
 
 // --- Memory Match game (self‑contained) ---
 
@@ -92,45 +93,49 @@ const MemoryMatch: React.FC<{ pairs?: number }> = ({ pairs = 8 }) => {
   const { deck, flip, reset, moves, elapsedMs } = useMemoryDeck(pairs);
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>🧩 Memory Match</h2>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <label>
-            Pairs:
-            <select defaultValue={pairs} onChange={(e) => location.href = `?pairs=${e.target.value}`} style={{ marginLeft: 8 }}>
-              {[6,8,10,12].map(n => <option key={n} value={n}>{n}</option>)}
+    <div className="memory-match">
+      <div className="memory-toolbar">
+        <h2 className="memory-title">🧩 Memory Match</h2>
+        <div className="memory-controls">
+          <label className="memory-select">
+            <span>Pairs:</span>
+            <select
+              className="memory-select-input"
+              defaultValue={pairs}
+              onChange={(e) => (location.href = `?pairs=${e.target.value}`)}
+            >
+              {[6, 8, 10, 12].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
             </select>
           </label>
-          <button onClick={reset} style={btnStyle}>Restart</button>
+          <button onClick={reset} className="btn">
+            Restart
+          </button>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 16, fontSize: 14, opacity: 0.9 }}>
-        <span><strong>Moves:</strong> {moves}</span>
-        {elapsedMs !== null && <span><strong>Time:</strong> {(elapsedMs/1000).toFixed(1)}s</span>}
+      <div className="memory-stats">
+        <span>
+          <strong>Moves:</strong> {moves}
+        </span>
+        {elapsedMs !== null && (
+          <span>
+            <strong>Time:</strong> {(elapsedMs / 1000).toFixed(1)}s
+          </span>
+        )}
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${Math.min(pairs*2, 8)}, minmax(64px, 1fr))`,
-          gap: 10,
-          maxWidth: 720,
-        }}
-      >
+      <div className="memory-grid">
         {deck.map((c, i) => (
           <button
             key={c.id}
             onClick={() => flip(i)}
-            style={{
-              ...cardStyle,
-              background: c.matched ? "#d1fae5" : c.flipped ? "#eef2ff" : "#111827",
-              color: c.flipped || c.matched ? "#111827" : "#9ca3af",
-              cursor: c.matched ? "default" : "pointer",
-            }}
+            className={`memory-card${c.flipped ? " is-flipped" : ""}${c.matched ? " is-matched" : ""}`}
             disabled={c.matched}
             aria-label={c.flipped ? c.emoji : "Hidden card"}
           >
-            <span style={{ fontSize: 28, userSelect: "none" }}>{c.flipped || c.matched ? c.emoji : "?"}</span>
+            {c.flipped || c.matched ? c.emoji : "?"}
           </button>
         ))}
       </div>
@@ -140,38 +145,22 @@ const MemoryMatch: React.FC<{ pairs?: number }> = ({ pairs = 8 }) => {
 
 // --- Placeholder zip game (coming soon) ---
 const ZipGamePlaceholder: React.FC = () => (
-  <div style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
-    <h2 style={{ marginTop: 0 }}>⚡ Zip (coming soon)</h2>
-    <p style={{ margin: 0 }}>A quick, brainy puzzle inspired by daily mini-games. We'll plug the real game here later.</p>
+  <div className="game-card">
+    <h2>⚡ Zip (coming soon)</h2>
+    <p>A quick, brainy puzzle inspired by daily mini-games. We'll plug the real game here later.</p>
   </div>
 );
 
 // --- Dashboard shell ---
 const Section: React.FC<{ title: string; children: React.ReactNode; right?: React.ReactNode }> = ({ title, children, right }) => (
-  <section style={{ display: "grid", gap: 12 }}>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <h1 style={{ margin: 0 }}>{title}</h1>
-      <div>{right}</div>
+  <section className="section">
+    <div className="section-header">
+      <h1 className="section-title">{title}</h1>
+      {right && <div className="section-actions">{right}</div>}
     </div>
     {children}
   </section>
 );
-
-const btnStyle: React.CSSProperties = {
-  padding: "8px 12px",
-  borderRadius: 10,
-  border: "1px solid #e5e7eb",
-  background: "white",
-};
-
-const cardStyle: React.CSSProperties = {
-  height: 84,
-  display: "grid",
-  placeItems: "center",
-  borderRadius: 12,
-  border: "1px solid #1f2937",
-  transition: "transform .12s ease, background .2s ease",
-};
 
 function useQueryPairs(): number {
   const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
@@ -184,73 +173,100 @@ export default function GamesDashboard() {
 
   const [active, setActive] = useState<"dashboard" | "memory" | "zip">("dashboard");
 
-  // Basic theming
-  useEffect(() => {
-    document.body.style.background = "#0b1220";
-    document.body.style.color = "#e5e7eb";
-    document.body.style.fontFamily = "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
-    return () => {
-      document.body.style.background = "";
-      document.body.style.color = "";
-      document.body.style.fontFamily = "";
-    };
-  }, []);
-
-  const NavButton = (props: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button {...props} style={{ ...btnStyle, background: "#111827", color: "#e5e7eb", borderColor: "#374151" }} />
+  const NavButton = ({ className = "", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props} className={`btn btn-dark ${className}`.trim()} />
   );
 
   return (
-    <div style={{ maxWidth: 960, margin: "40px auto", padding: "0 16px", display: "grid", gap: 24 }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span style={{ fontSize: 22 }}>🎯</span>
+    <div className="app-shell container">
+      <header className="site-header">
+        <div className="site-brand">
+          <span className="site-brand-icon" aria-hidden="true">
+            🎯
+          </span>
           <strong>GameHub</strong>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <NavButton onClick={() => setActive("dashboard")}>Dashboard</NavButton>
-          <NavButton onClick={() => setActive("memory")}>Memory Match</NavButton>
-          <NavButton onClick={() => setActive("zip")}>Zip</NavButton>
-        </div>
+        <nav className="site-nav">
+          <NavButton
+            onClick={() => setActive("dashboard")}
+            className={active === "dashboard" ? "is-active" : ""}
+          >
+            Dashboard
+          </NavButton>
+          <NavButton
+            onClick={() => setActive("memory")}
+            className={active === "memory" ? "is-active" : ""}
+          >
+            Memory Match
+          </NavButton>
+          <NavButton
+            onClick={() => setActive("zip")}
+            className={active === "zip" ? "is-active" : ""}
+          >
+            Zip
+          </NavButton>
+        </nav>
       </header>
 
       {active === "dashboard" && (
         <Section
           title="Your games"
-          right={<button style={btnStyle} onClick={() => setActive("memory")}>Play now</button>}
+          right={
+            <button className="btn" onClick={() => setActive("memory")}>
+              Play now
+            </button>
+          }
         >
-          <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-            <div style={{ border: "1px solid #1f2937", borderRadius: 16, padding: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <h3 style={{ margin: 0 }}>🧩 Memory Match</h3>
-                <button style={btnStyle} onClick={() => setActive("memory")}>Open</button>
+          <div className="game-grid">
+            <div className="game-card">
+              <div className="game-card-header">
+                <h3>🧩 Memory Match</h3>
+                <button className="btn" onClick={() => setActive("memory")}>
+                  Open
+                </button>
               </div>
-              <p style={{ marginTop: 8, opacity: 0.9 }}>Flip cards, find pairs. Simple, fast, addictive.</p>
+              <p>Flip cards, find pairs. Simple, fast, addictive.</p>
             </div>
-            <div style={{ border: "1px solid #1f2937", borderRadius: 16, padding: 16, opacity: 0.8 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <h3 style={{ margin: 0 }}>⚡ Zip</h3>
-                <button style={{ ...btnStyle, opacity: 0.8 }} onClick={() => setActive("zip")}>Preview</button>
+            <div className="game-card game-card--muted">
+              <div className="game-card-header">
+                <h3>⚡ Zip</h3>
+                <button className="btn" onClick={() => setActive("zip")}>
+                  Preview
+                </button>
               </div>
-              <p style={{ marginTop: 8, opacity: 0.9 }}>Daily brainteaser slot. We'll ship this next.</p>
+              <p>Daily brainteaser slot. We'll ship this next.</p>
             </div>
           </div>
         </Section>
       )}
 
       {active === "memory" && (
-        <Section title="Memory Match" right={<button style={btnStyle} onClick={() => setActive("dashboard")}>Back</button>}>
+        <Section
+          title="Memory Match"
+          right={
+            <button className="btn" onClick={() => setActive("dashboard")}>
+              Back
+            </button>
+          }
+        >
           <MemoryMatch pairs={pairs} />
         </Section>
       )}
 
       {active === "zip" && (
-        <Section title="Zip" right={<button style={btnStyle} onClick={() => setActive("dashboard")}>Back</button>}>
+        <Section
+          title="Zip"
+          right={
+            <button className="btn" onClick={() => setActive("dashboard")}>
+              Back
+            </button>
+          }
+        >
           <ZipGamePlaceholder />
         </Section>
       )}
 
-      <footer style={{ opacity: 0.7, fontSize: 12, textAlign: "center" }}>
+      <footer className="site-footer">
         <span>© GameHub • Built with React + TypeScript</span>
       </footer>
     </div>
