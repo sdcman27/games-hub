@@ -2,7 +2,9 @@
   color-scheme: dark;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -39,11 +41,6 @@ p {
   color: rgba(229, 231, 235, 0.9);
 }
 
-select,
-button {
-  font: inherit;
-}
-
 .container {
   width: min(960px, 100%);
   margin: 0 auto;
@@ -56,7 +53,7 @@ button {
   }
 }
 
-.app-shell {
+.app {
   display: grid;
   gap: 1.5rem;
 }
@@ -71,11 +68,11 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
 }
 
 .site-brand-icon {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
 }
 
 .site-nav {
@@ -126,19 +123,19 @@ button {
   opacity: 0.6;
 }
 
-.btn-dark {
+.btn--dark {
   background: #111827;
   color: #e5e7eb;
   border-color: #374151;
 }
 
-.btn-dark:hover:not(:disabled) {
+.btn--dark:hover:not(:disabled) {
   background: #1f2937;
 }
 
-.btn-dark.is-active {
+.btn--dark.is-active {
   background: #1f2937;
-  border-color: #4b5563;
+  border-color: #6366f1;
 }
 
 .section {
@@ -182,6 +179,10 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.game-card-title {
+  margin: 0;
 }
 
 .memory-match {
