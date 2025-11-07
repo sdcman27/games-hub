@@ -1,4 +1,121 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+
+const MEMORY_PAIR_OPTIONS = [6, 8, 10, 12] as const;
+type MemoryPairOption = (typeof MEMORY_PAIR_OPTIONS)[number];
+type View = "dashboard" | "memory" | "zip";
+
+function useMediaQuery(query: string) {
+  const getMatches = useCallback(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia === "undefined") {
+      return false;
+    }
+    return window.matchMedia(query).matches;
+  }, [query]);
+
+  const [matches, setMatches] = useState<boolean>(getMatches);
+
+  useEffect(() => {
+    setMatches(getMatches());
+    if (typeof window === "undefined" || typeof window.matchMedia === "undefined") {
+      return undefined;
+    }
+    const mediaQueryList = window.matchMedia(query);
+    const listener = (event: MediaQueryListEvent) => setMatches(event.matches);
+    mediaQueryList.addEventListener("change", listener);
+    return () => mediaQueryList.removeEventListener("change", listener);
+  }, [getMatches, query]);
+
+  return matches;
+}
+
+function useSearchParamState<T>(
+  key: string,
+  options: {
+    defaultValue: T;
+    parse: (value: string | null) => T | undefined;
+    serialize: (value: T) => string;
+  }
+) {
+  const { defaultValue, parse, serialize } = options;
+
+  const readValue = useCallback(() => {
+    if (typeof window === "undefined") {
+      return defaultValue;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get(key);
+    const parsed = parse(raw);
+    return parsed ?? defaultValue;
+  }, [defaultValue, key, parse]);
+
+  const [value, setValue] = useState<T>(readValue);
+
+  useEffect(() => {
+    setValue(readValue());
+  }, [readValue]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+    const onPopState = () => setValue(readValue());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [readValue]);
+
+  const updateValue = useCallback(
+    (next: T | ((prev: T) => T)) => {
+      setValue((previous) => {
+        const resolved = typeof next === "function" ? (next as (prev: T) => T)(previous) : next;
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          const shouldDelete = resolved === defaultValue;
+          if (shouldDelete) {
+            url.searchParams.delete(key);
+          } else {
+            url.searchParams.set(key, serialize(resolved));
+          }
+          const nextRelative = `${url.pathname}${url.search}${url.hash}`;
+          const currentRelative = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+          if (nextRelative !== currentRelative) {
+            window.history.pushState({}, "", nextRelative);
+          }
+        }
+        return resolved;
+      });
+    },
+    [defaultValue, key, serialize]
+  );
+
+  return [value, updateValue] as const;
+}
+
+function usePairsParam() {
+  return useSearchParamState<MemoryPairOption>("pairs", {
+    defaultValue: 8,
+    parse: (value) => {
+      if (!value) return undefined;
+      const numeric = Number(value);
+      return MEMORY_PAIR_OPTIONS.includes(numeric as MemoryPairOption)
+        ? (numeric as MemoryPairOption)
+        : undefined;
+    },
+    serialize: (value) => String(value),
+  });
+}
+
+function useViewParam() {
+  return useSearchParamState<View>("view", {
+    defaultValue: "dashboard",
+    parse: (value) => {
+      if (value === "dashboard" || value === "memory" || value === "zip") {
+        return value;
+      }
+      return undefined;
+    },
+    serialize: (value) => value,
+  });
+}
 
 // --- Memory Match game (self‑contained) ---
 
@@ -88,7 +205,10 @@ function useMemoryDeck(pairs = 8) {
   return { deck, flip, reset, moves, elapsedMs };
 }
 
-const MemoryMatch: React.FC<{ pairs?: number }> = ({ pairs = 8 }) => {
+const MemoryMatch: React.FC<{ pairs: number; onPairsChange: (value: MemoryPairOption) => void }> = ({
+  pairs,
+  onPairsChange,
+}) => {
   const { deck, flip, reset, moves, elapsedMs } = useMemoryDeck(pairs);
   const gridColumns = Math.min(pairs * 2, 8);
 
@@ -101,10 +221,10 @@ const MemoryMatch: React.FC<{ pairs?: number }> = ({ pairs = 8 }) => {
             <span>Pairs:</span>
             <select
               className="form-select"
-              defaultValue={pairs}
-              onChange={(e) => (location.href = `?pairs=${e.target.value}`)}
+              value={pairs}
+              onChange={(event) => onPairsChange(Number(event.target.value) as MemoryPairOption)}
             >
-              {[6, 8, 10, 12].map((n) => (
+              {MEMORY_PAIR_OPTIONS.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
@@ -166,23 +286,42 @@ const Section: React.FC<{ title: string; children: React.ReactNode; right?: Reac
   </section>
 );
 
-function useQueryPairs(): number {
-  const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const n = Number(params.get('pairs'));
-  return Number.isFinite(n) && n >= 4 && n <= 24 ? n : 8;
-}
-
 export default function GamesDashboard() {
-  const pairs = useQueryPairs();
+  const [pairs, setPairs] = usePairsParam();
+  const [activeView, setActiveView] = useViewParam();
+  const isMobile = useMediaQuery("(max-width: 720px)");
+  const [navOpen, setNavOpen] = useState(false);
 
-  const [active, setActive] = useState<"dashboard" | "memory" | "zip">("dashboard");
+  useEffect(() => {
+    if (!isMobile) {
+      setNavOpen(false);
+    }
+  }, [isMobile]);
 
-  const NavButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ className, ...rest }) => (
+  useEffect(() => {
+    setNavOpen(false);
+  }, [activeView]);
+
+  const navigateTo = useCallback(
+    (view: View) => {
+      setActiveView(view);
+    },
+    [setActiveView]
+  );
+
+  const navVisible = !isMobile || navOpen;
+
+  const NavButton: React.FC<{ view: View; children: React.ReactNode }> = ({ view, children }) => (
     <button
-      {...rest}
-      className={["btn", "btn--surface", className].filter(Boolean).join(" ")}
-      type={rest.type ?? "button"}
-    />
+      type="button"
+      onClick={() => navigateTo(view)}
+      className={["btn", "btn--surface", activeView === view ? "is-active" : null]
+        .filter(Boolean)
+        .join(" ")}
+      aria-current={activeView === view ? "page" : undefined}
+    >
+      {children}
+    </button>
   );
 
   return (
@@ -192,18 +331,44 @@ export default function GamesDashboard() {
           <span className="brand__icon">🎯</span>
           <strong>GameHub</strong>
         </div>
-        <div className="nav-cluster">
-          <NavButton onClick={() => setActive("dashboard")}>Dashboard</NavButton>
-          <NavButton onClick={() => setActive("memory")}>Memory Match</NavButton>
-          <NavButton onClick={() => setActive("zip")}>Zip</NavButton>
+        <div className="nav-bar">
+          <button
+            type="button"
+            className="nav-toggle"
+            aria-expanded={navVisible}
+            aria-controls="primary-navigation"
+            onClick={() => setNavOpen((open) => !open)}
+          >
+            <span className="sr-only">Toggle navigation</span>
+            <svg className="nav-toggle__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M4 6h16M4 12h16M4 18h16"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+          <nav
+            id="primary-navigation"
+            className="nav-cluster"
+            data-open={navVisible}
+            hidden={isMobile && !navOpen}
+            aria-hidden={isMobile && !navOpen}
+            aria-label="Primary navigation"
+          >
+            <NavButton view="dashboard">Dashboard</NavButton>
+            <NavButton view="memory">Memory Match</NavButton>
+            <NavButton view="zip">Zip</NavButton>
+          </nav>
         </div>
       </header>
 
-      {active === "dashboard" && (
+      {activeView === "dashboard" && (
         <Section
           title="Your games"
           right={
-            <button className="btn" onClick={() => setActive("memory")}>
+            <button className="btn" onClick={() => navigateTo("memory")}>
               Play now
             </button>
           }
@@ -212,7 +377,7 @@ export default function GamesDashboard() {
             <div className="panel">
               <div className="utility-cluster utility-cluster--between">
                 <h3>🧩 Memory Match</h3>
-                <button className="btn" onClick={() => setActive("memory")}>
+                <button className="btn" onClick={() => navigateTo("memory")}>
                   Open
                 </button>
               </div>
@@ -221,7 +386,7 @@ export default function GamesDashboard() {
             <div className="panel is-muted">
               <div className="utility-cluster utility-cluster--between">
                 <h3>⚡ Zip</h3>
-                <button className="btn btn--subtle" onClick={() => setActive("zip")}>
+                <button className="btn btn--subtle" onClick={() => navigateTo("zip")}>
                   Preview
                 </button>
               </div>
@@ -231,24 +396,24 @@ export default function GamesDashboard() {
         </Section>
       )}
 
-      {active === "memory" && (
+      {activeView === "memory" && (
         <Section
           title="Memory Match"
           right={
-            <button className="btn btn--ghost" onClick={() => setActive("dashboard")}>
+            <button className="btn btn--ghost" onClick={() => navigateTo("dashboard")}>
               Back
             </button>
           }
         >
-          <MemoryMatch pairs={pairs} />
+          <MemoryMatch pairs={pairs} onPairsChange={setPairs} />
         </Section>
       )}
 
-      {active === "zip" && (
+      {activeView === "zip" && (
         <Section
           title="Zip"
           right={
-            <button className="btn btn--ghost" onClick={() => setActive("dashboard")}>
+            <button className="btn btn--ghost" onClick={() => navigateTo("dashboard")}>
               Back
             </button>
           }
